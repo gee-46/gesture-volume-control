@@ -1,7 +1,7 @@
-# 🖐️ Infosys GestureVolume — Control with Hand Gestures
+# 🖐️  GestureVolume — Control with Hand Gestures
 
 > **Real-time microphone volume control using hand gestures via webcam.**  
-> Project by **Batch A** — Snehil Ghosh · Gautam N Chipkar · Amrutha Varshani · Ayush Gorge
+> Project by **Infosys springboard Internship 6.0 Batch 4-5** — Snehil Ghosh · Gautam N Chipkar · Amrutha Varshani · Ayush Gorge
 
 ---
 
@@ -108,6 +108,53 @@ ISB_Batch-A_Project/
 - **Run from terminal** (`python main.py`) — Tkinter GUIs do not work reliably inside Jupyter Lab or VS Code's interactive window
 - The `hand_landmarker.task` model file is **not included** in the repo (too large); download it separately using the instructions above
 - Make sure your **webcam is accessible** and not in use by another application
+
+---
+
+## 💡 Why We Built This
+
+Every day, students and professionals juggle between meetings, recordings, and calls — constantly reaching for their keyboard to adjust the mic volume at the worst moments. This friction breaks focus and disrupts workflow.
+
+**GestureVolume was built to eliminate that friction entirely.**
+
+In an era where AI and computer vision are reshaping human-computer interaction, we shouldn't need to *touch* a device to control it. This project demonstrates that a consumer webcam and a few hundred lines of Python are enough to build a fully functional, touch-free interface — no special hardware, no proprietary sensors, no dependencies on cloud APIs.
+
+Beyond convenience, this has real-world impact for:
+- 🧑‍🦽 **Accessibility** — giving hands-free control to users with motor impairments
+- 🎙️ **Streamers & podcasters** — quick mic management without breaking recording flow
+- 🏥 **Sterile environments** — touchless device control in medical or lab settings
+- 🤖 **HCI research** — a baseline for gesture-driven interface experiments
+
+This project proves that **gesture-based interfaces are not the future — they are already here**, built with open-source tools available to anyone.
+
+---
+
+## 🔭 Future Scope
+
+| Feature | Description |
+|---------|-------------|
+| 🔊 **Speaker volume control** | Extend beyond mic to control system/speaker volume |
+| 🖐️ **Multi-gesture vocabulary** | Map additional gestures to mute, screen brightness, media playback |
+| 🌐 **Cross-platform support** | Port mic control to macOS/Linux using `sounddevice` or `pyaudio` |
+| 🤖 **Custom gesture training** | Allow users to record and train their own gesture-to-action mappings |
+| 📱 **Mobile companion app** | Stream gesture data from a phone camera over Wi-Fi |
+| 🔒 **Gesture unlock** | Use hand signature as a biometric authentication trigger |
+| 🧠 **LLM integration** | Combine with voice + gesture for a fully touch-free AI assistant interface |
+
+---
+
+## 👨‍💻 Author
+
+**Gautam N Chipkar**  
+B.E – Artificial Intelligence & Data Science
+
+[![GitHub](https://img.shields.io/badge/GitHub-Light--seekr-181717?logo=github)](https://github.com/Light-seekr)
+
+---
+
+## ⭐ Support
+
+If you find this project valuable, consider giving it a star ⭐ — it helps others discover it and motivates continued development.
 
 ---
 
