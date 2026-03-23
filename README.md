@@ -160,4 +160,4 @@ If you find this project valuable, consider giving it a star ⭐ — it helps ot
 
 ## 📄 License
 
-This project was developed as part of the **Infosys Springboard Batch A** internship program.
+This project was developed as part of the **Infosys springboard Internship 6.0 program** .
