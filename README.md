@@ -1,4 +1,4 @@
-# 🖐️  GestureVolume — Control with Hand Gestures
+# 🖐️ Infosys GestureVolume — Control with Hand Gestures
 
 > **Real-time microphone volume control using hand gestures via webcam.**  
 > Project by **Infosys springboard Internship 6.0 Batch 4-5** — Snehil Ghosh · Gautam N Chipkar · Amrutha Varshani · Ayush Gorge
@@ -15,6 +15,19 @@ Two control modes are available:
 |------|-------------|
 | ✋ **Finger Counting** | Show 0–5 fingers → mic volume jumps to 0%, 20%, 40%, 60%, 80%, or 100% |
 | 🤏 **Pinch Gesture** | Pinch thumb & index finger and slide apart/together for smooth volume control |
+
+### 📸 Proof of Concept (Mic Volume Control)
+
+*Here you can see the application actively controlling the Windows Sound Settings **Microphone** input volume.*
+
+**1. Control Hub (main.py)**  
+![Control Hub](1.png)
+
+**2. Pinch Gesture Mode (Actively Controlling Mic)**  
+![Pinch Gesture](2.png)
+
+**3. Finger Counting Mode (Actively Controlling Mic)**  
+![Finger Counting](3.png)
 
 ---
 
@@ -160,4 +173,4 @@ If you find this project valuable, consider giving it a star ⭐ — it helps ot
 
 ## 📄 License
 
-This project was developed as part of the **Infosys springboard Internship 6.0 program** .
+This project was developed as part of the **Infosys Springboard Batch A** internship program.
