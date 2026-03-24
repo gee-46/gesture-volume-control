@@ -1,8 +1,4 @@
-"""
-Infosys GestureVolume - Control Hub
-Recreated to match original launcher design.
-Run: python main.py
-"""
+
 import tkinter as tk
 import subprocess
 import sys
