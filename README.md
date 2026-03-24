@@ -161,7 +161,7 @@ This project proves that **gesture-based interfaces are not the future — they 
 **Gautam N Chipkar**  
 B.E – Artificial Intelligence & Data Science
 
-[![GitHub](https://img.shields.io/badge/GitHub-Light--seekr-181717?logo=github)](https://github.com/Light-seekr)
+
 
 ---
 
