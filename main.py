@@ -1,4 +1,8 @@
-
+"""
+Infosys GestureVolume - Control Hub
+Recreated to match original launcher design.
+Run: python main.py
+"""
 import tkinter as tk
 import subprocess
 import sys
@@ -24,6 +28,7 @@ class ControlHub(tk.Tk):
         self.geometry(f"{WIN_W}x{WIN_H}")
         self.resizable(False, False)
         self.configure(bg=BG)
+        self.target_mode = "mic"
         self._build()
 
     # ── Draw decorative circuit-board border on a Canvas ───────────
@@ -46,8 +51,9 @@ class ControlHub(tk.Tk):
         )
 
         # ── Buttons ──────────────────────────────────────────────────
-        self._make_button(WIN_W // 2, 220, "Gesture Control",  self._launch_gesture)
-        self._make_button(WIN_W // 2, 278, "Finger Counting",  self._launch_finger)
+        self._make_button(WIN_W // 2, 210, "Gesture Control",  self._launch_gesture)
+        self._make_button(WIN_W // 2, 265, "Finger Counting",  self._launch_finger)
+        self._make_toggle_button(WIN_W // 2, 320)
 
         # ── Footer ───────────────────────────────────────────────────
         self.canvas.create_text(
@@ -135,11 +141,42 @@ class ControlHub(tk.Tk):
             c.create_rectangle(x + i*bw, y - bh, x + i*bw + bw-2, y,
                                 fill=CYAN_DIM, outline="")
 
+    def _make_toggle_button(self, cx, cy):
+        W, H = 250, 38
+        x1, y1 = cx - W // 2, cy - H // 2
+        x2, y2 = cx + W // 2, cy + H // 2
+
+        rect = self.canvas.create_rectangle(x1, y1, x2, y2,
+                                            fill=BTN_BG, outline=CYAN, width=1)
+        
+        def get_label():
+            return "Volume Target: MICROPHONE" if self.target_mode == "mic" else "Volume Target: SPEAKER"
+
+        text = self.canvas.create_text(cx, cy, text=get_label(),
+                                       font=("Courier New", 10, "bold"), fill=CYAN)
+
+        def on_enter(_):
+            self.canvas.itemconfig(rect, fill="#0d2a2a", outline="#00ffdd")
+            self.canvas.itemconfig(text, fill="#00ffdd")
+        def on_leave(_):
+            self.canvas.itemconfig(rect, fill=BTN_BG, outline=CYAN)
+            self.canvas.itemconfig(text, fill=CYAN)
+        def on_click(_):
+            self.target_mode = "speaker" if self.target_mode == "mic" else "mic"
+            self.canvas.itemconfig(text, text=get_label())
+            self.canvas.itemconfig(rect, fill="#005544")
+            self.after(100, lambda: self.canvas.itemconfig(rect, fill="#0d2a2a"))
+
+        for item in (rect, text):
+            self.canvas.tag_bind(item, "<Enter>", on_enter)
+            self.canvas.tag_bind(item, "<Leave>", on_leave)
+            self.canvas.tag_bind(item, "<Button-1>", on_click)
+
     # ── Launch helpers ───────────────────────────────────────────────
     def _launch(self, script):
         path = os.path.join(BASE_DIR, script)
-        subprocess.Popen([sys.executable, path])
-        self.destroy()
+        subprocess.Popen([sys.executable, path, self.target_mode])
+        self.after(100, self.destroy)
 
     def _launch_gesture(self): self._launch("Gesture_Controll.py")
     def _launch_finger(self):  self._launch("Finger_controll.py")
@@ -147,4 +184,3 @@ class ControlHub(tk.Tk):
 
 if __name__ == "__main__":
     ControlHub().mainloop()
-

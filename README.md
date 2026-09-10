@@ -1,7 +1,7 @@
 # 🖐️ Infosys GestureVolume — Control with Hand Gestures
 
 > **Real-time microphone volume control using hand gestures via webcam.**  
-> Project by **Infosys springboard Internship 6.0 Batch 4-5** — Snehil Ghosh · Gautam N Chipkar · Amrutha Varshani · Ayush Gorge
+> Project by **Batch A** — Snehil Ghosh · Gautam N Chipkar · Amrutha Varshani · Ayush Gorge
 
 ---
 
@@ -161,7 +161,7 @@ This project proves that **gesture-based interfaces are not the future — they 
 **Gautam N Chipkar**  
 B.E – Artificial Intelligence & Data Science
 
-
+[![GitHub](https://img.shields.io/badge/GitHub-Light--seekr-181717?logo=github)](https://github.com/Light-seekr)
 
 ---
 
@@ -173,4 +173,4 @@ If you find this project valuable, consider giving it a star ⭐ — it helps ot
 
 ## 📄 License
 
-This project was developed as part of the **Infosys springboard Internship 6.0 program** .
+This project was developed as part of the **Infosys Springboard Batch A** internship program.

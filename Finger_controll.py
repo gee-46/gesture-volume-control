@@ -8,6 +8,8 @@ import mediapipe as mp
 from mediapipe.tasks import python as mp_tasks
 from mediapipe.tasks.python import vision as mp_vision
 from mediapipe.tasks.python.components.containers import landmark as mp_landmark
+import matplotlib
+matplotlib.use('TkAgg')
 import tkinter as tk
 from PIL import Image, ImageTk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -22,6 +24,12 @@ if platform.system() != "Windows":
 # --- Window constants ---
 WIN_W = 1280
 WIN_H = 720
+
+# --- Config ---
+CAM_INDEX            = 0
+CAM_WIDTH            = 640
+CAM_HEIGHT           = 480
+DEBUG_MODE           = False
 
 # --- MediaPipe HandLandmarker model path ---
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hand_landmarker.task")
@@ -61,7 +69,11 @@ def _create_enum():
 
 def _get_vol_iface():
     enumerator = _create_enum()
-    device = enumerator.GetDefaultAudioEndpoint(1, 0)
+    import sys
+    dataflow = 1
+    if len(sys.argv) > 1 and sys.argv[1].lower() == "speaker":
+        dataflow = 0
+    device = enumerator.GetDefaultAudioEndpoint(dataflow, 0)
     iface = device.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     from ctypes import cast, POINTER
     return cast(iface, POINTER(IAudioEndpointVolume))
@@ -110,7 +122,11 @@ tmp.flush(); tmp.close()
 child_path = tmp.name
 print("Child script written to:", child_path)
 
-proc = subprocess.Popen([sys.executable, "-u", child_path],
+target_mode = "mic"
+if len(sys.argv) > 1:
+    target_mode = sys.argv[1].lower()
+
+proc = subprocess.Popen([sys.executable, "-u", child_path, target_mode],
                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                         text=True, bufsize=1)
 
@@ -204,6 +220,104 @@ def fingers_to_percent(n):
 
 print("[MAIN] Setup complete. Launching GUI...")
 
+class CameraStream:
+    def __init__(self, cam_index=0, width=640, height=480):
+        self.cam_index = cam_index
+        self.width = width
+        self.height = height
+        try:
+            self.cap = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW)
+        except Exception:
+            self.cap = cv2.VideoCapture(cam_index)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        
+        self.ret = False
+        self.frame = None
+        self.running = True
+        self.lock = threading.Lock()
+        self.thread = threading.Thread(target=self._update, daemon=True)
+        self.thread.start()
+
+    def _update(self):
+        while self.running:
+            ret, frame = self.cap.read()
+            if ret:
+                with self.lock:
+                    self.ret = ret
+                    self.frame = frame
+            else:
+                time.sleep(0.005)
+
+    def read(self):
+        with self.lock:
+            if self.frame is None:
+                return False, None
+            return self.ret, self.frame.copy()
+
+    def release(self):
+        self.running = False
+        try: self.thread.join(timeout=1.0)
+        except: pass
+        try: self.cap.release()
+        except: pass
+
+def is_left_index_only(lm_list):
+    """
+    Checks if ONLY the index finger is raised (extended) on the left hand,
+    while all other fingers (middle, ring, pinky, thumb) are folded.
+    """
+    if not lm_list or len(lm_list) < 21:
+        return False
+
+    # 1. Index finger must be raised (tip y should be significantly above pip y)
+    index_raised = lm_list[8].y < lm_list[6].y
+
+    # 2. Middle, Ring, Pinky must be folded (tip y should be below pip y)
+    middle_folded = lm_list[12].y >= lm_list[10].y
+    ring_folded = lm_list[16].y >= lm_list[14].y
+    pinky_folded = lm_list[20].y >= lm_list[18].y
+
+    # 3. Thumb must be folded (tip of thumb close to the index base or folded)
+    try:
+        if lm_list[17].x > lm_list[2].x:
+            thumb_raised = lm_list[4].x < lm_list[2].x
+        else:
+            thumb_raised = lm_list[4].x > lm_list[2].x
+    except Exception:
+        thumb_raised = False
+
+    return index_raised and middle_folded and ring_folded and pinky_folded and not thumb_raised
+
+
+def draw_hand_skeleton(frame, landmarks, color, label_text):
+    """Draws hand skeleton connections and wrist labels with background box."""
+    img_h, img_w = frame.shape[:2]
+    connections = [
+        (0,1),(1,2),(2,3),(3,4),
+        (0,5),(5,6),(6,7),(7,8),
+        (5,9),(9,10),(10,11),(11,12),
+        (9,13),(13,14),(14,15),(15,16),
+        (13,17),(17,18),(18,19),(19,20),(0,17)
+    ]
+    pts = [(int(p.x*img_w), int(p.y*img_h)) for p in landmarks]
+    for a, b in connections:
+        try: cv2.line(frame, pts[a], pts[b], color, 2)
+        except: pass
+    for pt in pts:
+        try: cv2.circle(frame, pt, 4, (255, 255, 255), -1)
+        except: pass
+        
+    if pts:
+        wrist_x, wrist_y = pts[0]
+        text_size = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
+        text_y = max(20, wrist_y - 5)
+        text_rect_y1 = max(0, wrist_y - 20)
+        text_rect_y2 = max(25, wrist_y + 5)
+        cv2.rectangle(frame, (wrist_x - 10, text_rect_y1), (wrist_x + text_size[0] + 10, text_rect_y2), (0, 0, 0), -1)
+        cv2.putText(frame, label_text, (wrist_x - 5, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+
 # ─────────────────────────────────────────────
 #  App class — uses mediapipe Tasks HandLandmarker
 # ─────────────────────────────────────────────
@@ -213,18 +327,16 @@ class App:
         self.cam_index = cam_index
 
         # 1. Camera
-        try: self.cap = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW)
-        except: self.cap = cv2.VideoCapture(cam_index)
-        if not self.cap.isOpened(): raise RuntimeError("Cannot open camera.")
+        self.cap = CameraStream(CAM_INDEX, CAM_WIDTH, CAM_HEIGHT)
 
         # 2. MediaPipe HandLandmarker (Tasks API)
         base_options = mp_tasks.BaseOptions(model_asset_path=MODEL_PATH)
         options = mp_vision.HandLandmarkerOptions(
             base_options=base_options,
-            num_hands=1,
-            min_hand_detection_confidence=0.5,
-            min_hand_presence_confidence=0.5,
-            min_tracking_confidence=0.5
+            num_hands=2,
+            min_hand_detection_confidence=0.35,
+            min_hand_presence_confidence=0.35,
+            min_tracking_confidence=0.4
         )
         self.hand_landmarker = mp_vision.HandLandmarker.create_from_options(options)
 
@@ -240,9 +352,26 @@ class App:
         # 4. Logic & State
         self.history = deque(maxlen=self.stable_frames)
         self.current_applied = get_mic_volume_percent()
+        self.last_volume_query_time = time.time()
         self.last_observed = 0
         self.running = True
         self.start_time = time.time()
+
+        # Two-hand responsibilities states
+        self.lock_state = False
+        self.left_index_detected = False
+        self.left_index_gesture_triggered = False
+        self.left_index_consecutive_true = 0
+        self.left_index_consecutive_false = 0
+        self.hud_message = ""
+        self.hud_message_time = 0.0
+        self.target_mode = target_mode
+
+        # Latency/plot throttling states
+        self.last_plot_time = 0.0
+        self.frame_count = 0
+        self.last_fps_time = time.time()
+        self.fps = 0.0
 
         # ── UI SETUP ──────────────────────────────────
         self.root = tk.Tk()
@@ -328,6 +457,36 @@ class App:
         self.root.bind("<Key>", self._on_keypress)
         self.root.after(10, self._update_frame)
 
+    def update_lock_state(self, left_landmarks):
+        """Updates Left Hand debouncing and Volume control lock toggling state."""
+        detected_this_frame = is_left_index_only(left_landmarks)
+        
+        # Debounce settings
+        STABILITY_FRAMES = 5
+        gesture_triggered = False
+        
+        if detected_this_frame:
+            self.left_index_consecutive_true += 1
+            self.left_index_consecutive_false = 0
+            if self.left_index_consecutive_true >= STABILITY_FRAMES:
+                if not self.left_index_detected:
+                    self.left_index_detected = True
+                    gesture_triggered = True
+        else:
+            self.left_index_consecutive_false += 1
+            self.left_index_consecutive_true = 0
+            if self.left_index_consecutive_false >= STABILITY_FRAMES:
+                self.left_index_detected = False
+                
+        if gesture_triggered:
+            self.lock_state = not self.lock_state
+            self.left_index_gesture_triggered = True
+            self.hud_message = "VOLUME LOCKED" if self.lock_state else "VOLUME UNLOCKED"
+            self.hud_message_time = time.time()
+            print(f"[LOCK STATE TOGGLE] Locked: {self.lock_state}")
+        else:
+            self.left_index_gesture_triggered = False
+
     def _on_keypress(self, event):
         try:
             if hasattr(event, "char") and event.char and event.char.lower() == "q":
@@ -376,9 +535,25 @@ class App:
         if not self.running: return
 
         ret, frame = self.cap.read()
-        if not ret:
-            self.root.after(50, self._update_frame)
+        if not ret or frame is None:
+            self.root.after(10, self._update_frame)
             return
+
+        # Calculate actual FPS
+        now_time = time.time()
+        self.frame_count += 1
+        if now_time - self.last_fps_time >= 1.0:
+            self.fps = self.frame_count / (now_time - self.last_fps_time)
+            self.frame_count = 0
+            self.last_fps_time = now_time
+
+        # Periodically query audio device (every 2.0 seconds) to avoid blocking pipe reads on every frame
+        if now_time - self.last_volume_query_time > 2.0:
+            try:
+                self.current_applied = get_mic_volume_percent()
+            except:
+                pass
+            self.last_volume_query_time = now_time
 
         frame = cv2.flip(frame, 1)
         img_h, img_w = frame.shape[:2]
@@ -387,26 +562,54 @@ class App:
         # Run hand detection
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
         result = None
+        t_start = time.time()
         try:
             result = self.hand_landmarker.detect(mp_image)
         except: pass
+        inference_time_ms = (time.time() - t_start) * 1000
+
+        left_landmarks = None
+        right_landmarks = None
+        left_detected = False
+        right_detected = False
+
+        if result and result.hand_landmarks:
+            for i, landmarks in enumerate(result.hand_landmarks):
+                if i < len(result.handedness) and result.handedness[i]:
+                    hand_info = result.handedness[i][0]
+                    name = (hand_info.category_name or hand_info.display_name or "").strip()
+                    if name.lower() == 'left':
+                        right_landmarks = landmarks
+                        right_detected = True
+                    elif name.lower() == 'right':
+                        left_landmarks = landmarks
+                        left_detected = True
+
+        # Update left hand lock state
+        self.update_lock_state(left_landmarks)
 
         fingers_found = 0
         wrist_z_estimate = 0.0
 
-        if result and result.hand_landmarks:
-            lm_list = result.hand_landmarks[0]  # first hand
+        # Draw skeletons with custom BGR colors and labels
+        if left_detected and left_landmarks:
+            draw_hand_skeleton(frame, left_landmarks, (255, 255, 0), "Left: Lock Toggle")
+            if is_left_index_only(left_landmarks):
+                ix_px = int(round(left_landmarks[8].x * img_w))
+                iy_px = int(round(left_landmarks[8].y * img_h))
+                cv2.circle(frame, (ix_px, iy_px), 12, (0, 255, 0), 2)
 
-            # Draw skeleton
-            self._draw_landmarks_manual(frame, lm_list, img_w, img_h)
+        if right_detected and right_landmarks:
+            role_text = f"Right: Finger Counting ({'LOCKED' if self.lock_state else 'ACTIVE'})"
+            draw_hand_skeleton(frame, right_landmarks, (255, 0, 255), role_text)
 
-            # Count fingers
-            fingers_found = self._detect_fingers(lm_list)
+            # Count fingers from right hand
+            fingers_found = self._detect_fingers(right_landmarks)
 
-            # Z-proximity: wrist(0) to middle MCP(9)
+            # Z-proximity: wrist(0) to middle MCP(9) on right hand
             try:
-                x0, y0 = lm_list[0].x, lm_list[0].y
-                x9, y9 = lm_list[9].x, lm_list[9].y
+                x0, y0 = right_landmarks[0].x, right_landmarks[0].y
+                x9, y9 = right_landmarks[9].x, right_landmarks[9].y
                 dist = math.sqrt((x9-x0)**2 + (y9-y0)**2)
                 norm_prox = (dist - 0.1) * 3.5
                 wrist_z_estimate = max(0.0, min(1.0, norm_prox))
@@ -426,35 +629,58 @@ class App:
 
         target_pct = fingers_to_percent(chosen)
         if len(self.history) == self.history.maxlen and target_pct != self.current_applied:
-            try:
-                set_mic_volume_percent(target_pct)
-                self.current_applied = get_mic_volume_percent()
-                print(f"[APPLY] Fingers {chosen} -> {target_pct}%")
-            except: pass
+            if not self.lock_state:
+                try:
+                    set_mic_volume_percent(target_pct)
+                    self.current_applied = get_mic_volume_percent()
+                    print(f"[APPLY] Fingers {chosen} -> {target_pct}%")
+                except: pass
+            else:
+                pass
 
         self.last_observed = chosen
         muted = get_mic_is_muted()
 
-        # HUD: Arc reactor
-        try:
-            vol_rad = (self.current_applied / 100.0) * (2 * math.pi)
-            self.arc_bar.set_width(vol_rad)
-            col = '#00ffff' if self.current_applied < 50 else ('#ff00ff' if self.current_applied < 80 else '#ff3333')
-            self.arc_bar.set_color(col)
-            self.text_vol.set_text(f"{int(self.current_applied)}%")
-            self.canvas_arc.draw_idle()
-        except: pass
+        # HUD: Arc reactor (Throttled update rate along with proximity)
+        if now_time - self.last_plot_time >= 0.1:
+            self.last_plot_time = now_time
+            try:
+                vol_rad = (self.current_applied / 100.0) * (2 * math.pi)
+                self.arc_bar.set_width(vol_rad)
+                col = '#00ffff' if self.current_applied < 50 else ('#ff00ff' if self.current_applied < 80 else '#ff3333')
+                self.arc_bar.set_color(col)
+                self.text_vol.set_text(f"{int(self.current_applied)}%")
+                self.canvas_arc.draw_idle()
+            except: pass
 
-        # HUD: Proximity
-        try:
-            self.bar_prox.set_height(wrist_z_estimate)
-            prox_col = '#00ff00' if wrist_z_estimate < 0.5 else ('#ffcc00' if wrist_z_estimate < 0.8 else '#ff0000')
-            self.bar_prox.set_color(prox_col)
-            self.canvas_prox.draw_idle()
-        except: pass
+            # HUD: Proximity
+            try:
+                self.bar_prox.set_height(wrist_z_estimate)
+                prox_col = '#00ff00' if wrist_z_estimate < 0.5 else ('#ffcc00' if wrist_z_estimate < 0.8 else '#ff0000')
+                self.bar_prox.set_color(prox_col)
+                self.canvas_prox.draw_idle()
+            except: pass
 
         # Video overlay
-        display_frame = self._overlay_text(frame.copy(), self.last_observed, self.current_applied, muted)
+        display_frame = self._overlay_text(frame.copy(), left_detected, right_detected, self.last_observed, self.current_applied, muted)
+        
+        # Debug overlay monitor
+        if DEBUG_MODE:
+            debug_lines = [
+                f"DEBUG MONITOR",
+                f"FPS: {self.fps:.1f}",
+                f"MP Latency: {inference_time_ms:.1f}ms",
+                f"Res: {img_w}x{img_h}",
+                f"L-Hand: {'ON' if left_detected else 'OFF'}",
+                f"R-Hand: {'ON' if right_detected else 'OFF'}",
+                f"Fingers: {self.last_observed}",
+                f"Volume: {self.current_applied}%",
+                f"Lock: {self.lock_state}"
+            ]
+            for idx, txt in enumerate(debug_lines):
+                cv2.putText(display_frame, txt, (img_w - 220, img_h - 10 - (len(debug_lines) - 1 - idx) * 20),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1, cv2.LINE_AA)
+
         img_rgb2 = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
         pil = Image.fromarray(img_rgb2)
         try:
@@ -469,32 +695,47 @@ class App:
         # Status
         now = time.strftime("%H:%M:%S")
         self.status_label.config(
-            text=f"[{now}] | SYS: ONLINE | Fingers: {self.last_observed} | Vol: {self.current_applied}% | Mute: {muted} | Z-Depth: {wrist_z_estimate:.2f}"
+            text=f"[{now}] | SYS: ONLINE | Target: {self.target_mode.upper()} | Fingers: {self.last_observed} | Vol: {self.current_applied}% | Mute: {muted} | Z-Depth: {wrist_z_estimate:.2f}"
         )
-        self.root.after(15, self._update_frame)
+        self.root.after(10, self._update_frame)
 
-    def _overlay_text(self, frame, fingers, volume, muted):
-        h, w = frame.shape[:2]
-        txt1 = f"Fingers: {fingers}"
-        txt2 = f"Mic: {volume}%"
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        scale1 = max(0.9, w / 640)
-        scale2 = max(0.6, w / 900)
-        thickness1 = 3; thickness2 = 2
-        (t1_w, t1_h), _ = cv2.getTextSize(txt1, font, scale1, thickness1)
-        (t2_w, t2_h), _ = cv2.getTextSize(txt2, font, scale2, thickness2)
-        pad = 12
-        box_w = max(t1_w, t2_w) + pad*4
-        box_h = t1_h + t2_h + pad*3
-        overlay = frame.copy()
-        cv2.rectangle(overlay, (10, 10), (10 + box_w, 10 + box_h), (6,6,6), -1)
-        cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
-        org1 = (10 + pad, 10 + pad + t1_h)
-        cv2.putText(frame, txt1, org1, font, scale1, (0,220,180), thickness1+2, cv2.LINE_AA)
-        cv2.putText(frame, txt1, org1, font, scale1, (255,255,255), thickness1, cv2.LINE_AA)
-        org2 = (10 + pad, 10 + pad + t1_h + pad + t2_h)
-        cv2.putText(frame, txt2, org2, font, scale2, (0,180,220), thickness2+2, cv2.LINE_AA)
-        cv2.putText(frame, txt2, org2, font, scale2, (255,255,255), thickness2, cv2.LINE_AA)
+    def _overlay_text(self, frame, left_detected, right_detected, fingers, volume, muted):
+        img_h, img_w = frame.shape[:2]
+        
+        # 1. Overlay left status text
+        target_label = "Speaker" if self.target_mode == "speaker" else "Mic"
+        lines = [
+            f"Left Hand:  {'DETECTED' if left_detected else 'NOT DETECTED'}",
+            f"Right Hand: {'DETECTED' if right_detected else 'NOT DETECTED'}",
+            f"Fingers:    {fingers}",
+            f"Volume ({target_label}): {volume}%",
+            f"Control:    {'LOCKED' if self.lock_state else 'ACTIVE'}"
+        ]
+        for i, txt in enumerate(lines):
+            color = (255, 255, 255)
+            if "NOT DETECTED" in txt or "LOCKED" in txt:
+                color = (0, 0, 255)
+            elif "DETECTED" in txt or "ACTIVE" in txt:
+                color = (0, 255, 0)
+            elif "Volume" in txt or "Fingers" in txt:
+                color = (255, 255, 0)
+
+            cv2.putText(frame, txt, (10, 35 + i*35),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2, cv2.LINE_AA)
+
+        # 2. Brief banner for state toggle
+        if self.hud_message and (time.time() - self.hud_message_time < 2.0):
+            text_size = cv2.getTextSize(self.hud_message, cv2.FONT_HERSHEY_DUPLEX, 1.2, 3)[0]
+            text_x = (img_w - text_size[0]) // 2
+            text_y = 120
+            
+            rect_color = (0, 0, 180) if "LOCKED" in self.hud_message else (0, 180, 0)
+            cv2.rectangle(frame, (text_x - 20, text_y - 40), (text_x + text_size[0] + 20, text_y + 15), rect_color, -1)
+            cv2.rectangle(frame, (text_x - 20, text_y - 40), (text_x + text_size[0] + 20, text_y + 15), (255, 255, 255), 2)
+            
+            cv2.putText(frame, self.hud_message, (text_x, text_y),
+                        cv2.FONT_HERSHEY_DUPLEX, 1.2, (255, 255, 255), 3, cv2.LINE_AA)
+            
         return frame
 
     def _on_close(self):
