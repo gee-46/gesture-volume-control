@@ -59,20 +59,18 @@ except Exception as ex:
     out("ERR COINIT " + str(ex)); traceback.print_exc(); sys.exit(3)
 
 def _create_enum():
-    from comtypes.client import CreateObject
-    from pycaw.pycaw import IMMDeviceEnumerator
     try:
-        return CreateObject("MMDeviceEnumerator.MMDeviceEnumerator", interface=IMMDeviceEnumerator)
-    except Exception:
         clsid = GUID("{BCDE0395-E52F-467C-8E3D-C4579291692E}")
         return CreateObject(clsid, interface=IMMDeviceEnumerator)
+    except Exception:
+        return CreateObject("MMDeviceEnumerator.MMDeviceEnumerator", interface=IMMDeviceEnumerator)
 
 def _get_vol_iface():
     enumerator = _create_enum()
     import sys
-    dataflow = 1
-    if len(sys.argv) > 1 and sys.argv[1].lower() == "speaker":
-        dataflow = 0
+    dataflow = 0
+    if len(sys.argv) > 1 and sys.argv[1].lower() == "mic":
+        dataflow = 1
     device = enumerator.GetDefaultAudioEndpoint(dataflow, 0)
     iface = device.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     from ctypes import cast, POINTER
@@ -122,7 +120,7 @@ tmp.flush(); tmp.close()
 child_path = tmp.name
 print("Child script written to:", child_path)
 
-target_mode = "mic"
+target_mode = "speaker"
 if len(sys.argv) > 1:
     target_mode = sys.argv[1].lower()
 
@@ -568,22 +566,33 @@ class App:
         except: pass
         inference_time_ms = (time.time() - t_start) * 1000
 
+        # Collect detected hands and sort by X position (left vs right on screen)
+        hands = []
+        if result and result.hand_landmarks:
+            for idx, landmarks in enumerate(result.hand_landmarks):
+                wrist_x = landmarks[0].x
+                hands.append((wrist_x, landmarks))
+        
+        hands.sort(key=lambda item: item[0])
+        
         left_landmarks = None
         right_landmarks = None
         left_detected = False
         right_detected = False
 
-        if result and result.hand_landmarks:
-            for i, landmarks in enumerate(result.hand_landmarks):
-                if i < len(result.handedness) and result.handedness[i]:
-                    hand_info = result.handedness[i][0]
-                    name = (hand_info.category_name or hand_info.display_name or "").strip()
-                    if name.lower() == 'left':
-                        right_landmarks = landmarks
-                        right_detected = True
-                    elif name.lower() == 'right':
-                        left_landmarks = landmarks
-                        left_detected = True
+        if len(hands) == 1:
+            lm = hands[0][1]
+            if is_left_index_only(lm) and not self.lock_state:
+                left_landmarks = lm
+                left_detected = True
+            else:
+                right_landmarks = lm
+                right_detected = True
+        elif len(hands) >= 2:
+            left_landmarks = hands[0][1]
+            left_detected = True
+            right_landmarks = hands[1][1]
+            right_detected = True
 
         # Update left hand lock state
         self.update_lock_state(left_landmarks)

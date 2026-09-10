@@ -28,7 +28,7 @@ class ControlHub(tk.Tk):
         self.geometry(f"{WIN_W}x{WIN_H}")
         self.resizable(False, False)
         self.configure(bg=BG)
-        self.target_mode = "mic"
+        self.target_mode = "speaker"
         self._build()
 
     # ── Draw decorative circuit-board border on a Canvas ───────────
