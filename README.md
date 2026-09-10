@@ -104,7 +104,6 @@ gesture-volume-control/
 ├── Finger_controll.py       # Mode 2: Discrete Finger Counting Control
 ├── hand_landmarker.task     # MediaPipe Hand Landmarker model asset
 ├── requirements.txt         # Python dependencies
-├── Interview_QA.md          # Technical documentation & interview preparation
 ├── Finger_controll.ipynb    # Jupyter notebook (reference & prototyping)
 ├── Gesture_Controll.ipynb   # Jupyter notebook (reference & prototyping)
 └── README.md                # Project documentation
