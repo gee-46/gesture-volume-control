@@ -373,7 +373,7 @@ class App:
 
         # ── UI SETUP ──────────────────────────────────
         self.root = tk.Tk()
-        self.root.title("Infosys_GestureVolume: Finger -> Mic Volume")
+        self.root.title("Gesture Volume Control")
         self.root.geometry(f"{WIN_W}x{WIN_H}")
         self.root.configure(bg="#050505")
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -384,16 +384,12 @@ class App:
         self.root.columnconfigure(0, weight=1)
 
         # HEADER
-        self.header_frame = tk.Frame(self.root, bg="#111", height=70)
+        self.header_frame = tk.Frame(self.root, bg="#111", height=55)
         self.header_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 5))
         self.header_frame.grid_propagate(False)
-        tk.Label(self.header_frame, text="Infosys_GestureVolume: Volume Control with Hand Gestures",
+        tk.Label(self.header_frame, text="Gesture Volume Control",
                  font=("Consolas", 18, "bold"), fg="#00ffcc", bg="#111", anchor="w", padx=20
-                 ).pack(fill=tk.X, pady=(5, 0))
-        tk.Label(self.header_frame,
-                 text="Project by BATCH A | SNEHIL GHOSH, GAUTAM N CHIPKAR, AMRUTHA VARSHANI, AYUSH GORGE",
-                 font=("Consolas", 10), fg="#cccccc", bg="#111", anchor="w", padx=20
-                 ).pack(fill=tk.X, pady=(0, 5))
+                 ).pack(fill=tk.X, pady=12)
 
         # MAIN CONTENT
         self.main_frame = tk.Frame(self.root, bg="#050505")

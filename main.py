@@ -24,7 +24,7 @@ WIN_W, WIN_H = 860, 520
 class ControlHub(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Infosys_GestureVolume — Control Hub")
+        self.title("Gesture Volume Control")
         self.geometry(f"{WIN_W}x{WIN_H}")
         self.resizable(False, False)
         self.configure(bg=BG)
@@ -41,13 +41,8 @@ class ControlHub(tk.Tk):
         # ── Title ────────────────────────────────────────────────────
         self.canvas.create_text(
             WIN_W // 2, 78,
-            text="Gesture Volume: Volume Control with Hand Gestures",
-            font=("Courier New", 18, "bold"), fill=CYAN, anchor="center"
-        )
-        self.canvas.create_text(
-            WIN_W // 2, 108,
-            text="Made by SNEHIL GHOSH, GAUTAM N CHIPKAR, AMRUTHA VARSHANI, AYUSH GORGE",
-            font=("Courier New", 9), fill=TEXT_DIM, anchor="center"
+            text="Gesture Volume Control",
+            font=("Courier New", 20, "bold"), fill=CYAN, anchor="center"
         )
 
         # ── Buttons ──────────────────────────────────────────────────
@@ -58,7 +53,7 @@ class ControlHub(tk.Tk):
         # ── Footer ───────────────────────────────────────────────────
         self.canvas.create_text(
             WIN_W // 2, WIN_H - 16,
-            text="Gesture Volume: Volume Control with Hand Gestures",
+            text="Gesture Volume Control",
             font=("Courier New", 8), fill=TEXT_DIM, anchor="center"
         )
 

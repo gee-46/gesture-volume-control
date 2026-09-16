@@ -309,7 +309,7 @@ def draw_hand_skeleton(frame, landmarks, color, label_text):
 class App:
     def __init__(self, root):
         self.root = root
-        root.title("Infosys_GestureVolume: Gesture -> Audio Volume")
+        root.title("Gesture Volume Control")
         root.geometry("1280x780")
         root.configure(bg="#111")
         root.resizable(True, False)
@@ -322,16 +322,12 @@ class App:
         self.pinch_filter = LandmarkFilter()
 
         # Header
-        hdr = tk.Frame(root, bg="#181818", height=70)
+        hdr = tk.Frame(root, bg="#181818", height=55)
         hdr.grid(row=0, column=0, sticky="ew", padx=5, pady=(5, 0))
         hdr.grid_propagate(False)
-        tk.Label(hdr, text="Infosys_GestureVolume: Volume Control with Hand Gestures",
+        tk.Label(hdr, text="Gesture Volume Control",
                  font=("Consolas", 18, "bold"), fg="#00ffcc", bg="#181818",
-                 anchor="e", padx=20).pack(fill=tk.X, pady=(5, 0))
-        tk.Label(hdr,
-                 text="Project made by BATCH A | SNEHIL GHOSH, GAUTAM N CHIPKAR, AMRUTHA VARSHANI, AYUSH GORGE",
-                 font=("Consolas", 11), fg="#cccccc", bg="#181818",
-                 anchor="e", padx=20).pack(fill=tk.X, pady=(0, 5))
+                 anchor="e", padx=20).pack(fill=tk.X, pady=10)
 
         # Main Layout
         main = tk.Frame(root, bg="#111")
